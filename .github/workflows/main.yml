@@ -40,7 +40,8 @@ jobs:
             }
             throw "$packageName failed to install via Chocolatey after multiple attempts."
         }
-        Install-PackageWithRetry -packageName "7zip"
+        Install-PackageWithRetry -packageName "chrome-remote-desktop-host"
+        Install-PackageWithRetry -packageName "googlechrome"
 
     - name: Download and Install MSI App Player
       run: |
@@ -52,47 +53,41 @@ jobs:
         Invoke-WebRequest -Uri $msiZipUrl -OutFile $downloadPath
         Write-Host "MSI App Player zip downloaded successfully."
 
-        # Extract the zip file
+        # Extract zip file
         Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
         Write-Host "MSI App Player extracted successfully."
+
+        # List files in the extracted folder (for debugging)
+        Write-Host "Listing extracted files to locate installer..."
+        Get-ChildItem -Path $extractPath -Recurse | ForEach-Object { Write-Host $_.FullName }
 
         # Locate the installer dynamically
         $installerPath = Get-ChildItem -Path $extractPath -Recurse -Filter "*.exe" | Select-Object -First 1 -ExpandProperty FullName
         if ($installerPath) {
-          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
-          Write-Host "MSI App Player installed successfully."
+            Write-Host "Installer found at: $installerPath"
+            Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
+            Write-Host "MSI App Player installed successfully."
         } else {
-          Write-Host "Installer not found. Installation failed."
-          exit 1
+            Write-Host "Installer not found in the extracted files. Installation failed."
+            exit 1
         }
 
     - name: Download and Install Free Fire APK
       run: |
         $apkUrl = "https://dl.cdn.freefiremobile.com/live/package/FreeFire.apk"
         $apkPath = "$Env:USERPROFILE\Downloads\FreeFire.apk"
-
-        # Download the Free Fire APK
         Invoke-WebRequest -Uri $apkUrl -OutFile $apkPath
         Write-Host "Free Fire APK downloaded successfully."
 
-        # Launch MSI App Player and install the APK
-        $msiPath = "C:\Program Files (x86)\BlueStacks_nxt\HD-Player.exe"
-        if (Test-Path $msiPath) {
-            Start-Process -FilePath $msiPath -ArgumentList "installapk $apkPath" -Wait
-            Write-Host "Free Fire APK installed successfully inside MSI App Player."
-        } else {
-            Write-Host "MSI App Player not found. APK installation skipped."
-        }
-
     - name: Set Desktop Wallpaper
       run: |
-        $WallpaperUrl = "https://i.ibb.co/7QBjY1q/20241214-020008.jpg"
-        $WallpaperPath = "$Env:USERPROFILE\Documents\wallpaper.jpg"
+        $wallpaperUrl = "https://i.ibb.co/7QBjY1q/20241214-020008.jpg"
+        $wallpaperPath = "$Env:USERPROFILE\Pictures\wallpaper.jpg"
 
         # Download the wallpaper
-        Invoke-WebRequest -Uri $WallpaperUrl -OutFile $WallpaperPath
-        
-        # Set the wallpaper
+        Invoke-WebRequest -Uri $wallpaperUrl -OutFile $wallpaperPath
+
+        # Set the wallpaper (using Set-ItemProperty for Windows 10)
         Add-Type -TypeDefinition @"
         using System;
         using System.Runtime.InteropServices;
@@ -102,7 +97,11 @@ jobs:
         }
         "@
 
-        [Wallpaper]::SystemParametersInfo(0x0014, 0, $WallpaperPath, 0x01)
+        $SPI_SETDESKWALLPAPER = 20
+        $SPIF_UPDATEINIFILE = 1
+        $SPIF_SENDCHANGE = 2
+
+        [Wallpaper]::SystemParametersInfo($SPI_SETDESKWALLPAPER, 0, $wallpaperPath, $SPIF_UPDATEINIFILE -bor $SPIF_SENDCHANGE)
         Write-Host "Wallpaper set successfully."
 
     - name: Keep Connection Active
