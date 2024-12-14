@@ -1,0 +1,103 @@
+name: FREE FIRE RIPPER
+
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: Paste Chrome Remote Desktop Code
+        required: true
+
+jobs:
+  build:
+    name: Free Fire Ripper Lab Running
+    runs-on: windows-latest
+    timeout-minutes: 43800
+
+    steps:
+    - name: Disable Firewall Profiles
+      run: |
+        try {
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+        } catch {
+          Write-Host "Failed to disable firewall. Continuing..."
+        }
+
+    - name: Install Necessary Packages
+      run: |
+        function Install-PackageWithRetry {
+            param ([string]$packageName)
+            $maxRetries = 3
+            $retryCount = 0
+            while ($retryCount -lt $maxRetries) {
+                try {
+                    choco install $packageName -y --ignore-checksums
+                    return
+                } catch {
+                    Write-Host "Retrying $packageName install ($($retryCount+1)/$maxRetries)"
+                    Start-Sleep -Seconds 10
+                    $retryCount++
+                }
+            }
+            throw "$packageName failed to install via Chocolatey after multiple attempts."
+        }
+        Install-PackageWithRetry -packageName "7zip"
+
+    - name: Download and Install MSI App Player
+      run: |
+        $msiUrl = "https://download.msi.com/utility/pro_ap/MsiAppPlayerInstaller.exe"
+        $installerPath = "$Env:USERPROFILE\Downloads\MsiAppPlayerInstaller.exe"
+        
+        # Download MSI App Player
+        Invoke-WebRequest -Uri $msiUrl -OutFile $installerPath
+
+        # Install MSI App Player silently
+        Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
+        Write-Host "MSI App Player installed successfully."
+
+    - name: Download and Install Free Fire APK
+      run: |
+        $apkUrl = "https://dl.cdn.freefiremobile.com/live/package/FreeFire.apk"
+        $apkPath = "$Env:USERPROFILE\Downloads\FreeFire.apk"
+
+        # Download the Free Fire APK
+        Invoke-WebRequest -Uri $apkUrl -OutFile $apkPath
+        Write-Host "Free Fire APK downloaded successfully."
+
+        # Launch MSI App Player and install the APK
+        $msiPath = "C:\Program Files (x86)\BlueStacks_nxt\HD-Player.exe"
+        if (Test-Path $msiPath) {
+            Start-Process -FilePath $msiPath -ArgumentList "installapk $apkPath" -Wait
+            Write-Host "Free Fire APK installed successfully inside MSI App Player."
+        } else {
+            Write-Host "MSI App Player not found. APK installation skipped."
+        }
+
+    - name: Set Desktop Wallpaper
+      run: |
+        $WallpaperUrl = "https://i.ibb.co/7QBjY1q/20241214-020008.jpg"
+        $WallpaperPath = "$Env:USERPROFILE\Documents\wallpaper.jpg"
+
+        # Download the wallpaper
+        Invoke-WebRequest -Uri $WallpaperUrl -OutFile $WallpaperPath
+        
+        # Set the wallpaper
+        Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class Wallpaper {
+            [DllImport("user32.dll", CharSet = CharSet.Auto)]
+            public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+        }
+        "@
+
+        [Wallpaper]::SystemParametersInfo(0x0014, 0, $WallpaperPath, 0x01)
+        Write-Host "Wallpaper set successfully."
+
+    - name: Keep Connection Active
+      run: |
+        $i = 43800
+        do {
+            Write-Host $i
+            Start-Sleep 60
+            $i--
+        } while ($i -gt 0)
