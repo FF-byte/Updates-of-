@@ -44,15 +44,27 @@ jobs:
 
     - name: Download and Install MSI App Player
       run: |
-        $msiUrl = "https://download.msi.com/utility/pro_ap/MsiAppPlayerInstaller.exe"
-        $installerPath = "$Env:USERPROFILE\Downloads\MsiAppPlayerInstaller.exe"
-        
-        # Download MSI App Player
-        Invoke-WebRequest -Uri $msiUrl -OutFile $installerPath
+        $msiZipUrl = "https://download.msi.com/uti_exe/nb/MSI-APP-Player.zip"
+        $downloadPath = "$Env:USERPROFILE\Downloads\MSI-APP-Player.zip"
+        $extractPath = "$Env:USERPROFILE\Downloads\MSI-APP-Player"
 
-        # Install MSI App Player silently
-        Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
-        Write-Host "MSI App Player installed successfully."
+        # Download MSI App Player zip
+        Invoke-WebRequest -Uri $msiZipUrl -OutFile $downloadPath
+        Write-Host "MSI App Player zip downloaded successfully."
+
+        # Extract the zip file
+        Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
+        Write-Host "MSI App Player extracted successfully."
+
+        # Locate the installer and install MSI App Player silently
+        $installerPath = Join-Path $extractPath "MSI-APP-Player.exe"
+        if (Test-Path $installerPath) {
+          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
+          Write-Host "MSI App Player installed successfully."
+        } else {
+          Write-Host "Installer not found. Installation failed."
+          exit 1
+        }
 
     - name: Download and Install Free Fire APK
       run: |
