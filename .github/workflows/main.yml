@@ -56,9 +56,9 @@ jobs:
         Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
         Write-Host "MSI App Player extracted successfully."
 
-        # Locate the installer and install MSI App Player silently
-        $installerPath = Join-Path $extractPath "MSI-APP-Player.exe"
-        if (Test-Path $installerPath) {
+        # Locate the installer dynamically
+        $installerPath = Get-ChildItem -Path $extractPath -Recurse -Filter "*.exe" | Select-Object -First 1 -ExpandProperty FullName
+        if ($installerPath) {
           Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
           Write-Host "MSI App Player installed successfully."
         } else {
